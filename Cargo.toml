@@ -1,0 +1,12 @@
+[package]
+name = "pipecheck"
+version = "0.1.0"
+description = "Handle broken pipes without changing process-wide defaults"
+repository = "https://github.com/featherbread/pipecheck"
+authors = ["Alex Hamlin <alex@alexhamlin.co>"]
+license = "MIT"
+edition = "2018"
+rust-version = "1.36.0"
+
+[dependencies]
+libc = "0.2.177"

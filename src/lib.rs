@@ -7,10 +7,9 @@
 //! # Why is this useful?
 //!
 //! When a process runs in a Unix shell pipeline, it's good form for the process to exit quickly
-//! and silently as soon as its downstream process stops accepting input. Unix simplifies the
-//! handling of this case with the SIGPIPE signal: when a process writes to a pipe where all file
-//! descriptors referring to the read end have been closed, the system sends it this signal, which
-//! by default terminates it.
+//! and silently as soon as its downstream stops accepting input. Unix simplifies this with the
+//! SIGPIPE signal: when a process writes to a pipe where all file descriptors referring to the
+//! read end have been closed, the system sends it this signal, which by default terminates it.
 //!
 //! The existence of SIGPIPE introduces two challenges. First, it's Unix-specific, so portable CLIs
 //! might not be able to rely on it. Second, a networked server can generate SIGPIPE when writing
@@ -23,10 +22,11 @@
 //! find it difficult using error values alone. Experience shows that real-world Rust libraries
 //! don't always expose enough detail to easily distinguish this from other errors. For example,
 //! the [`source`](std::error::Error::source) implementation in a library's custom error type might
-//! not expose an underlying [`io::Error`] even when traversing the entire chain of sources.
+//! not expose an underlying [`io::Error`] even when traversing the entire chain of sources, which
+//! is especially problematic when the error type is coalesced into a `Box<dyn Error>` or similar.
 //!
-//! [`Writer`] instead plumbs this logic directly into every write operation, catching broken pipe
-//! errors and terminating the process before anything else in the call stack has a chance to
+//! [`Writer`] instead plumbs this handling directly into every write operation, catching broken
+//! pipe errors and terminating the process before anything else in the call stack has a chance to
 //! obscure them. Unlike an up-front modification of the process-wide SIGPIPE behavior, this
 //! approach is more cross-platform and better scoped to the specific writes where termination is
 //! desired (generally on standard output and error streams).

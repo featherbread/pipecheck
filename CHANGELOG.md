@@ -1,3 +1,10 @@
+## Unreleased
+
+### Added
+
+- **The `pipecheck::wrap` constructor**, which I think reads more fluently than
+  `pipecheck::Writer::new`.
+
 ## v0.1.0 (2025-10-25)
 
 This is the initial release of `pipecheck`, a tiny piece of [xt][xt] that I

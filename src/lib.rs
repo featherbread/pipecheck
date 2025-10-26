@@ -54,6 +54,11 @@
 
 use std::io::{self, Write};
 
+/// A convenient alias for [`Writer::new`].
+pub fn wrap<W: Write>(w: W) -> Writer<W> {
+    Writer::new(w)
+}
+
 /// A writer that silently terminates the program on broken pipe errors.
 ///
 /// When any call to its underlying writer returns a [`BrokenPipe`](io::ErrorKind::BrokenPipe)

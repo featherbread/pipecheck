@@ -5,8 +5,8 @@ description = "Handle broken pipes without changing process-wide defaults"
 repository = "https://github.com/featherbread/pipecheck"
 authors = ["Alex Hamlin <alex@alexhamlin.co>"]
 license = "MIT"
-edition = "2021"
-rust-version = "1.63.0"
+edition = "2018"
+rust-version = "1.36.0"
 
 [dependencies]
-libc = "0.2.177"
+libc = "0.2.163"

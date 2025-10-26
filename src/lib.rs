@@ -105,7 +105,7 @@ where
 
 fn check_for_broken_pipe<T>(result: io::Result<T>) -> io::Result<T> {
     match result {
-        Err(err) if err.kind() == io::ErrorKind::BrokenPipe => exit_for_broken_pipe(),
+        Err(ref err) if err.kind() == io::ErrorKind::BrokenPipe => exit_for_broken_pipe(),
         result => result,
     }
 }

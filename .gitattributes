@@ -1,0 +1,2 @@
+# Avoid modifying vendored files on Windows to prevent checksum mismatches.
+vendor/** binary

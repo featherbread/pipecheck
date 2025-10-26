@@ -1,0 +1,44 @@
+---
+name: MSRV Check
+
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  read-msrv:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Read MSRV
+      id: read-msrv
+      run: |
+        msrv="$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].rust_version')"
+        echo "msrv=$msrv" >> "$GITHUB_OUTPUT"
+    outputs:
+      msrv: ${{ steps.read-msrv.outputs.msrv }}
+
+  msrv-check:
+    needs: read-msrv
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - ubuntu-24.04
+        - windows-2022
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Download Toolchain
+      run: |
+        rustup set profile minimal
+        rustup toolchain install ${{ needs.read-msrv.outputs.msrv }}
+        rustup default ${{ needs.read-msrv.outputs.msrv }}
+        rustc --version
+    - name: Check
+      run: cargo check

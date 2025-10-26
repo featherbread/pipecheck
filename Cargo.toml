@@ -1,7 +1,7 @@
 [package]
 name = "pipecheck"
 version = "0.1.0"
-description = "Handle broken pipes without changing process-wide defaults"
+description = "Cross-platform Unix-style handling of broken pipe errors"
 repository = "https://github.com/featherbread/pipecheck"
 authors = ["Alex Hamlin <alex@alexhamlin.co>"]
 license = "MIT"

@@ -7,6 +7,7 @@ authors = ["Alex Hamlin <alex@alexhamlin.co>"]
 license = "MIT"
 edition = "2018"
 rust-version = "1.36.0"
+exclude = [".cargo/config*", ".gitattributes", ".github/**"]
 
 [dependencies]
 libc = "0.2.163"

@@ -6,34 +6,35 @@
 //!
 //! # Why is this useful?
 //!
-//! When a process runs in a Unix shell pipeline, it's good form for the process to exit quickly
-//! and silently as soon as its downstream stops accepting input. Unix simplifies this with the
-//! SIGPIPE signal: when a process writes to a pipe where all file descriptors referring to the
-//! read end have been closed, the system sends it this signal, which by default terminates it.
+//! Within a shell pipeline, it's good form for a process to exit quickly and silently as soon as
+//! its downstream stops accepting input. Unix simplifies this with the SIGPIPE signal: when a
+//! process writes to a pipe where all file descriptors referring to the read end have been closed,
+//! the system delivers it a SIGPIPE, which by default terminates it.
 //!
-//! The existence of SIGPIPE introduces two challenges. First, it's Unix-specific, so portable CLIs
-//! might not be able to rely on it. Second, a networked server can generate SIGPIPE when writing
-//! to a socket whose client has closed its read end, and terminating the server would break other
-//! clients' connections. Given these challenges, the Rust developers chose to override Unix's
-//! default behavior by globally ignoring SIGPIPE prior to calling `main`, causing all writes to
-//! broken pipes to return a plain [`BrokenPipe`](io::ErrorKind::BrokenPipe) error.
+//! The existence of SIGPIPE introduces two challenges:
 //!
-//! Unfortunately, a well-meaning CLI that wants to handle broken pipes with a silent exit might
-//! find it difficult using error values alone. Experience shows that real-world Rust libraries
-//! don't always expose enough detail to easily distinguish this from other errors. For example,
-//! the [`source`](std::error::Error::source) implementation in a library's custom error type might
-//! not expose an underlying [`io::Error`] even when traversing the entire chain of sources, which
-//! is especially problematic when the error type is coalesced into a `Box<dyn Error>` or similar.
+//!   1. It's Unix-specific, so portable CLIs can't rely on it completely.
+//!   2. A networked server can generate SIGPIPE on writes to a socket whose client has closed its
+//!      read end, and terminating the server would break other clients' connections.
 //!
-//! [`Writer`] instead plumbs this handling directly into every write operation, catching broken
-//! pipe errors and terminating the process before anything else in the call stack has a chance to
-//! obscure them. Unlike an up-front modification of the process-wide SIGPIPE behavior, this
-//! approach is more cross-platform and better scoped to the specific writes where termination is
-//! desired (generally on standard output and error streams).
+//! Given these challenges, the Rust developers chose to override Unix's default behavior by
+//! ignoring SIGPIPE before calling `main`, so that writes to broken pipes return a plain
+//! [`BrokenPipe`](io::ErrorKind::BrokenPipe) error on all platforms.
 //!
-//! Note that termination on Unix invokes the real default behavior of SIGPIPE; `Writer` does not
-//! employ incorrect hacks like exiting with code 141 (mimicking the shell return code of a process
-//! terminated by SIGPIPE).
+//! However, real-world Rust libraries don't always expose enough detail to easily distinguish
+//! broken pipes from other errors. For example, the [`source`](std::error::Error::source)
+//! implementation in a custom error type might not expose an underlying [`io::Error`] even when
+//! traversing the entire chain of sources, which is problematic when error values are coalesced
+//! into a `Box<dyn Error>` (or similar) and passed up the call stack.
+//!
+//! [`Writer`] instead plumbs its logic into every write, catching broken pipe errors and
+//! terminating the process before they can be lost or obscured. Unlike up-front modification of
+//! process-wide SIGPIPE behavior, this approach is more cross-platform and better scoped to the
+//! specific writes where termination is desired (generally standard output and error streams).
+//!
+//! Note that termination on Unix attempts to use the real default behavior of SIGPIPE; `Writer`
+//! does not employ incorrect hacks like exiting with code 141 (mimicking the shell return code of
+//! a process terminated by SIGPIPE).
 //!
 //! # Further Reading
 //!
@@ -44,9 +45,9 @@
 //! - <https://stackoverflow.com/a/65760807>
 //! - <https://github.com/BurntSushi/ripgrep/issues/200#issuecomment-616884727>
 //!
-//! The concept of `pipecheck` was directly inspired by Go's default behavior for broken pipes:
-//! terminating the program if the write was to a standard output or error stream, and otherwise
-//! returning a plain error. For background on Go's behavior and runtime implementation, see:
+//! The concept of `pipecheck` was inspired by Go's default behavior for broken pipes: terminating
+//! the program if the write was to a standard output or error stream, and otherwise returning a
+//! plain error. For background on Go's behavior and runtime implementation, see:
 //!
 //! - <https://pkg.go.dev/os/signal#hdr-SIGPIPE>
 //! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/os/file_unix.go;l=252>

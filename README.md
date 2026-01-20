@@ -6,8 +6,8 @@ See [the crate documentation](https://docs.rs/pipecheck/latest/pipecheck/) for d
 The use of `signal` rather than `sigaction` should be considered a deficiency
 in the current implementation, as the semantics of the former are less consistent
 across implementations and some systems document the effects of `signal` in a
-multi-threaded process to be unspecified. (Hopefully `SIG_DFL` is a less
-catastrophic case than setting a custom handler?)
+multi-threaded process to be unspecified. Work is in progress to migrate to
+sigaction; the new implementation is yet to be properly tested.
 
 The current implementation does not modify signal masks to unblock SIGPIPE.
 If SIGPIPE is blocked, it falls back to exiting with code 1. This behavior may

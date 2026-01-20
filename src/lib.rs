@@ -67,6 +67,8 @@
 //! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/runtime/signal_unix.go;l=333>
 
 use std::io::{self, Write};
+use std::mem::MaybeUninit;
+use std::ptr;
 
 /// A convenient alias for [`Writer::new`].
 pub fn wrap<W: Write>(w: W) -> Writer<W> {
@@ -141,8 +143,19 @@ fn exit_for_broken_pipe() -> ! {
 
 #[cfg(unix)]
 fn try_terminating_by_sigpipe() {
-    // TODO: This needs to be replaced with sigaction as mentioned in the README.
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    // SAFETY: sigaction is a C struct, so zeroed() is a valid type-level initialization.
+    // Rust's usual struct initializer syntax is a bad idea, since certain platforms might have
+    // extra fields we aren't ready for.
+    let mut act: libc::sigaction = unsafe { MaybeUninit::zeroed().assume_init() };
+    act.sa_sigaction = libc::SIG_DFL;
+
+    // SAFETY: All the values should be valid; the last argument in particular is explicitly
+    // allowed to be null if we don't care about the previous handler. POSIX.1 requires this to be
+    // reentrant in multi-threaded programs.
+    let ret = unsafe { libc::sigaction(libc::SIGPIPE, &act, ptr::null_mut()) };
+    if ret != 0 {
+        return; // Weird, sigaction failed. Best we can do is fall back to a plain exit.
+    }
 
     // SAFETY: We know SIGPIPE is a valid signal value, and POSIX.1 requires this to be reentrant
     // in multi-threaded programs. This _should_ terminate the program, but might not due to the

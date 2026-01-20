@@ -117,6 +117,15 @@ fn check_for_broken_pipe<T>(result: io::Result<T>) -> io::Result<T> {
 
 fn exit_for_broken_pipe() -> ! {
     #[cfg(unix)]
+    try_terminating_by_sigpipe();
+
+    // Outside of Unix, or in other cases where dying from SIGPIPE fails,
+    // we fall back to a plain exit with a generic code.
+    std::process::exit(1);
+}
+
+#[cfg(unix)]
+fn try_terminating_by_sigpipe() {
     // SAFETY: These are FFI calls to libc, which we assume is implemented
     // correctly. Because everything in the block comes from libc, there are no
     // Rust invariants to violate.
@@ -125,7 +134,8 @@ fn exit_for_broken_pipe() -> ! {
         libc::raise(libc::SIGPIPE);
     }
 
-    // Non-Unix systems fall back to a normal silent exit (and Unix systems
-    // should not reach this line).
-    std::process::exit(1);
+    // That should have been synchronous. If we get here, it could be that the
+    // signal was blocked, or that another thread raced to install a handler,
+    // or that a libc call somehow failed and we ignored it...
+    // regardless, we'll fall back to the plain exit above.
 }

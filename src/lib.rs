@@ -126,13 +126,23 @@ fn exit_for_broken_pipe() -> ! {
 
 #[cfg(unix)]
 fn try_terminating_by_sigpipe() {
-    // SAFETY: These are FFI calls to libc, which we assume is implemented
-    // correctly. Because everything in the block comes from libc, there are no
-    // Rust invariants to violate.
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
-        libc::raise(libc::SIGPIPE);
-    }
+    // TODO: This needs to be replaced with sigaction as mentioned in the README.
+    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+
+    // SAFETY: POSIX.1-2001 requires raise to be async-signal-safe (according to glibc manpages),
+    // so we ought to be safe from data races. It's possible that a thread raced with us above to
+    // set a non-default handler for SIGPIPE, in which case we'll invoke that handler before
+    // continuing with a plain exit.
+    //
+    // TODO: The race condition described above needs to be documented at the crate level.
+    // However, signal handler registration generally involves unsafe code, and the most important
+    // safe crate for signal handling (signal_hook) describes this race in its own documentation as
+    // well (at least in signal_hook::low_level::emulate_default_handler).
+    //
+    // (I'm not using signal_hook directly since the emulation falls back to abort instead of an
+    // exit, which adds another layer of signal handling messiness and maybe other undesirable side
+    // effects.)
+    unsafe { libc::raise(libc::SIGPIPE) };
 
     // That should have been synchronous. If we get here, it could be that the
     // signal was blocked, or that another thread raced to install a handler,

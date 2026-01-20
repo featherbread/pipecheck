@@ -1,3 +1,16 @@
+## Unreleased
+
+### Added
+
+- **Documentation of important caveats** within the crate, including a possible
+  (but sound) race condition and notes on signal masking.
+
+### Changed
+
+- **Using `sigaction` rather than `signal`** to reset the SIGPIPE handler,
+  which is broadly considered more portable and better-defined for
+  multi-threaded programs.
+
 ## v0.1.1 (2025-10-25)
 
 ### Added

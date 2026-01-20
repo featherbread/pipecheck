@@ -4,6 +4,19 @@
 //! error, a [`Writer`] terminates the current process with a SIGPIPE signal, or exits with code 1
 //! on non-Unix systems.
 //!
+//! # Caveats
+//!
+//! On Unix, [`Writer`] works by resetting the process-wide SIGPIPE handler to its default behavior
+//! immediately before sending SIGPIPE to the current thread. This permits a race condition:
+//! if another thread concurrently registers a SIGPIPE handler, `Writer` may invoke that handler
+//! before falling back to a plain exit with code 1. This is _not_ considered unsound in terms of
+//! Rust's safety guarantees, as POSIX.1 prohibits the involved C library functions from being
+//! prone to data races or similar undefined behavior. The race condition is easily avoided by not
+//! handling SIGPIPE outside of `Writer`.
+//!
+//! `Writer` does _not_ manipulate the calling thread's signal mask, and falls back to a plain exit
+//! with code 1 if SIGPIPE is blocked.
+//!
 //! # Why is this useful?
 //!
 //! Within a shell pipeline, it's good form for a process to exit quickly and silently as soon as

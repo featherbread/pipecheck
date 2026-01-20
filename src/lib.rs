@@ -120,7 +120,8 @@ fn exit_for_broken_pipe() -> ! {
     try_terminating_by_sigpipe();
 
     // Outside of Unix, or in other cases where dying from SIGPIPE fails,
-    // we fall back to a plain exit with a generic code.
+    // we fall back to a plain exit with the most generic code.
+    // TODO: Consider letting users customize the exit code?
     std::process::exit(1);
 }
 

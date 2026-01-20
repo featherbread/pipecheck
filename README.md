@@ -3,14 +3,6 @@ See [the crate documentation](https://docs.rs/pipecheck/latest/pipecheck/) for d
 
 ## WARNINGS AND DEFICIENCIES
 
-On Unix, this crate resets (using `unsafe` code) SIGPIPE to its default behavior
-during program termination. If the installation of a non-default handler for
-SIGPIPE races with this reset, this crate may invoke the newly installed handler
-before terminating the program with exit code 1. This is not expected to invoke
-data races or other Undefined Behavior, as POSIX.1 requires the two involved
-system calls (`signal` and `raise`) to be async-signal-safe. However, the crate
-documentation fails to discuss this behavior.
-
 The use of `signal` rather than `sigaction` should be considered a deficiency
 in the current implementation, as the semantics of the former are less consistent
 across implementations and some systems document the effects of `signal` in a

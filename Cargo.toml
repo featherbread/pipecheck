@@ -1,6 +1,6 @@
 [package]
 name = "pipecheck"
-version = "0.1.1"
+version = "0.1.2"
 description = "Cross-platform Unix-style handling of broken pipe errors"
 repository = "https://github.com/featherbread/pipecheck"
 authors = ["Alex Hamlin <alex@alexhamlin.co>"]

@@ -7,7 +7,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "pipecheck"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "libc 0.2.163 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

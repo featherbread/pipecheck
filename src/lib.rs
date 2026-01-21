@@ -72,8 +72,6 @@
 //! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/runtime/signal_unix.go;l=333>
 
 use std::io::{self, Write};
-use std::mem::MaybeUninit;
-use std::ptr;
 
 /// A convenient alias for [`Writer::new`].
 pub fn wrap<W: Write>(w: W) -> Writer<W> {
@@ -148,6 +146,9 @@ fn exit_for_broken_pipe() -> ! {
 
 #[cfg(unix)]
 fn try_terminating_by_sigpipe() {
+    use std::mem::MaybeUninit;
+    use std::ptr;
+
     // SAFETY: sigaction is a C struct, so zeroed() is a valid type-level initialization.
     // Rust's usual struct initializer syntax is a bad idea, since certain platforms might have
     // extra fields we aren't ready for.

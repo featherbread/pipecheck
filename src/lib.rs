@@ -1,6 +1,6 @@
 //! Cross-platform Unix-style handling of broken pipe errors.
 //!
-//! When any call to its underlying writer returns a [`BrokenPipe`](io::ErrorKind::BrokenPipe)
+//! When any call to its underlying writer returns a [`BrokenPipe`](std::io::ErrorKind::BrokenPipe)
 //! error, a [`Writer`] terminates the current process with a SIGPIPE signal, or falls back to a
 //! plain exit with code 1.
 //!
@@ -36,13 +36,13 @@
 //!
 //! Given these challenges, the Rust developers chose to override Unix's default behavior by
 //! ignoring SIGPIPE before calling `main`, so that writes to broken pipes return a plain
-//! [`BrokenPipe`](io::ErrorKind::BrokenPipe) error on all platforms.
+//! [`BrokenPipe`](std::io::ErrorKind::BrokenPipe) error on all platforms.
 //!
 //! However, real-world Rust libraries don't always expose enough detail to easily distinguish
 //! broken pipes from other errors. For example, the [`source`](std::error::Error::source)
-//! implementation in a custom error type might not expose an underlying [`io::Error`] even when
-//! traversing the entire chain of sources, which is problematic when error values are coalesced
-//! into a `Box<dyn Error>` (or similar) and passed up the call stack.
+//! implementation for a custom error might not expose an underlying [`io::Error`](std::io::Error)
+//! even when traversing the entire chain of sources, which is problematic when error values are
+//! coalesced into a `Box<dyn Error>` (or similar) and passed up the call stack.
 //!
 //! [`Writer`] instead plumbs its logic into every write, catching broken pipe errors and
 //! terminating the process before they can be lost or obscured. Compared to modifying the
@@ -53,6 +53,15 @@
 //! Note that termination on Unix attempts to use the real default behavior of SIGPIPE; `Writer`
 //! does not employ incorrect hacks like exiting with code 141 (mimicking the shell return code of
 //! a process terminated by SIGPIPE).
+//!
+//! # Can I avoid adding such a small crate to my supply chain?
+//!
+//! [`src/pipecheck.rs`](../src/pipecheck/pipecheck.rs.html) contains the entire implementation of
+//! the crate with independent documentation and licensing information, with the explicit goal of
+//! easy copy-paste vendoring into your own codebase.
+//!
+//! You will need to depend on the `libc` crate, add `mod pipecheck;` to your crate root or an
+//! appropriate parent module, and ensure that your lint settings allow the module's unsafe code.
 //!
 //! # Further Reading
 //!
@@ -71,102 +80,6 @@
 //! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/os/file_unix.go;l=252>
 //! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/runtime/signal_unix.go;l=333>
 
-use std::io::{self, Write};
+mod pipecheck;
 
-/// A convenient alias for [`Writer::new`].
-pub fn wrap<W: Write>(w: W) -> Writer<W> {
-    Writer::new(w)
-}
-
-/// A writer that silently terminates the program on broken pipe errors.
-///
-/// When any call to its underlying writer returns a [`BrokenPipe`](io::ErrorKind::BrokenPipe)
-/// error, a [`Writer`] terminates the current process with a SIGPIPE signal, or exits with code 1
-/// on non-Unix systems.
-///
-/// See [the crate documentation](crate) for more details.
-pub struct Writer<W>(W)
-where
-    W: Write;
-
-impl<W> Writer<W>
-where
-    W: Write,
-{
-    pub fn new(w: W) -> Writer<W> {
-        Writer(w)
-    }
-}
-
-impl<W> Write for Writer<W>
-where
-    W: Write,
-{
-    // Rust 1.0.0 includes the following methods.
-
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        check_for_broken_pipe(self.0.write(buf))
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        check_for_broken_pipe(self.0.flush())
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        check_for_broken_pipe(self.0.write_all(buf))
-    }
-
-    fn write_fmt(&mut self, fmt: std::fmt::Arguments<'_>) -> io::Result<()> {
-        check_for_broken_pipe(self.0.write_fmt(fmt))
-    }
-
-    // Rust 1.36.0 stabilizes write_vectored.
-
-    fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
-        check_for_broken_pipe(self.0.write_vectored(bufs))
-    }
-}
-
-fn check_for_broken_pipe<T>(result: io::Result<T>) -> io::Result<T> {
-    match result {
-        Err(ref err) if err.kind() == io::ErrorKind::BrokenPipe => exit_for_broken_pipe(),
-        result => result,
-    }
-}
-
-fn exit_for_broken_pipe() -> ! {
-    #[cfg(unix)]
-    try_terminating_by_sigpipe();
-
-    // Outside of Unix, or in other cases where dying from SIGPIPE fails,
-    // we fall back to a plain exit with the most generic code.
-    // TODO: Consider letting users customize the exit code?
-    std::process::exit(1);
-}
-
-#[cfg(unix)]
-fn try_terminating_by_sigpipe() {
-    use std::mem::MaybeUninit;
-    use std::ptr;
-
-    // SAFETY: sigaction is a C struct, so zeroed() is a valid type-level initialization.
-    // Rust's usual struct initializer syntax is a bad idea, since certain platforms might have
-    // extra fields we aren't ready for.
-    let mut act: libc::sigaction = unsafe { MaybeUninit::zeroed().assume_init() };
-    act.sa_sigaction = libc::SIG_DFL;
-
-    // SAFETY: All the values should be valid; the last argument in particular is explicitly
-    // allowed to be null if we don't care about the previous handler. POSIX.1 requires this to be
-    // reentrant in multi-threaded programs.
-    let ret = unsafe { libc::sigaction(libc::SIGPIPE, &act, ptr::null_mut()) };
-    if ret != 0 {
-        return; // Weird, sigaction failed. Best we can do is fall back to a plain exit.
-    }
-
-    // SAFETY: We know SIGPIPE is a valid signal value, and POSIX.1 requires this to be reentrant
-    // in multi-threaded programs. This _should_ terminate the program, but might not due to the
-    // "Caveats" in the crate documentation…
-    unsafe { libc::raise(libc::SIGPIPE) };
-
-    // …in which case we fall through this function and exit the process.
-}
+pub use pipecheck::{wrap, Writer};

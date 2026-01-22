@@ -1,3 +1,10 @@
+## Unreleased
+
+### Changed
+
+- **Created `src/pipecheck.rs`** with independent documentation and licensing
+  info to facilitate easy vendoring into other projects.
+
 ## v0.1.2 (2026-01-20)
 
 ### Added

@@ -1,4 +1,4 @@
-## Unreleased
+## v0.1.3 (2026-01-25)
 
 ### Changed
 

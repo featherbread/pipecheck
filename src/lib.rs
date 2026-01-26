@@ -60,8 +60,9 @@
 //! the crate with independent documentation and licensing information, with the explicit goal of
 //! easy copy-paste vendoring into your own codebase.
 //!
-//! You will need to depend on the `libc` crate, add `mod pipecheck;` to your crate root or an
-//! appropriate parent module, and ensure that your lint settings allow the module's unsafe code.
+//! You will need to depend on the `libc` crate (for at least `cfg(unix)`), add `mod pipecheck;`
+//! to your crate root or an appropriate parent module, and ensure that your lint settings allow
+//! the module's unsafe code.
 //!
 //! # Further Reading
 //!

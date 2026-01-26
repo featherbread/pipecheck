@@ -1,6 +1,6 @@
 [package]
 name = "pipecheck"
-version = "0.1.2"
+version = "0.1.3-dev"
 description = "Cross-platform Unix-style handling of broken pipe errors"
 repository = "https://github.com/featherbread/pipecheck"
 authors = ["Alex Hamlin <alex@alexhamlin.co>"]
@@ -9,5 +9,5 @@ edition = "2018"
 rust-version = "1.36.0"
 exclude = [".cargo/config*", ".gitattributes", ".github/**"]
 
-[dependencies]
+[target.'cfg(unix)'.dependencies]
 libc = "0.2.163"

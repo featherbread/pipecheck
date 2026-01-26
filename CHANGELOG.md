@@ -4,6 +4,7 @@
 
 - **Created `src/pipecheck.rs`** with independent documentation and licensing
   info to facilitate easy vendoring into other projects.
+- **Scoped `libc` dependency to `cfg(unix)`** to reflect how it's used.
 
 ## v0.1.2 (2026-01-20)
 

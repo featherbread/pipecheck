@@ -1,3 +1,13 @@
+## v0.2.0 (Unreleased)
+
+### Added
+
+- **Automatic unblocking of SIGPIPE** by manipulating the current thread's
+  signal mask in addition to the process-wide action. The thinking is that
+  since pipecheck always terminates the process one way or another on broken
+  pipe errors, it should strive to avoid the exit fallback in as many
+  situations as it reasonably can.
+
 ## v0.1.3 (2026-01-25)
 
 ### Changed

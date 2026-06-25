@@ -6,14 +6,12 @@
 //!
 //! # Caveats
 //!
-//! On Unix, [`Writer`] works by resetting the process-wide SIGPIPE handler to its default behavior
-//! immediately before sending SIGPIPE to the current thread. It may fall back to a plain exit:
+//! On Unix, [`Writer`] works by manually sending SIGPIPE to the current thread after unblocking
+//! it in the thread's signal mask and resetting its process-wide disposition to its default.
+//! `Writer` may fall back to a plain exit:
 //!
-//!   * If it fails to reset the default SIGPIPE handler, which should never happen on a
-//!     well-behaved system.
-//!   * If the current thread's signal mask blocks delivery of SIGPIPE, which may happen if the
-//!     current thread or its creator previously manipulated the signal mask. This version of
-//!     `Writer` never unblocks SIGPIPE on its own (though a future version might).
+//!   * If it fails to unblock SIGPIPE or reset its disposition, which should never happen
+//!     on a well-behaved system.
 //!   * If a racing thread installs a non-default SIGPIPE handler, in which case `Writer` may
 //!     invoke that handler before exiting. This is _not_ considered unsound in terms of Rust's
 //!     safety guarantees, as POSIX.1 prohibits the involved C library functions from being prone
@@ -44,8 +42,8 @@
 //! `Box<dyn Error>` or `anyhow::Error`.
 //!
 //! [`Writer`] instead plumbs its logic into every write, catching broken pipe errors and
-//! terminating the process before they can be lost or obscured. Compared to modifying the
-//! process-wide SIGPIPE behavior at the start of a Rust program, this approach is more
+//! terminating the process before they can be lost or obscured. Compared to resetting the
+//! process-wide SIGPIPE disposition at the start of a Rust program, this approach is more
 //! cross-platform and better scoped to the specific writes where termination is desired
 //! (generally standard output and error streams).
 //!

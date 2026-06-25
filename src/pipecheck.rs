@@ -89,36 +89,71 @@ fn check_for_broken_pipe<T>(result: io::Result<T>) -> io::Result<T> {
 
 fn exit_for_broken_pipe() -> ! {
     #[cfg(unix)]
-    try_terminating_by_sigpipe();
+    let _ = unix::try_terminating_by_sigpipe();
 
-    // Outside of Unix, or in other cases where dying from SIGPIPE fails,
+    // Outside of Unix, or in other cases where termination by SIGPIPE fails,
     // we fall back to a plain exit with the most generic code.
     std::process::exit(1);
 }
 
 #[cfg(unix)]
-fn try_terminating_by_sigpipe() {
+mod unix {
+    use std::convert::Infallible;
     use std::mem::MaybeUninit;
     use std::ptr;
 
-    // SAFETY: sigaction is a C struct, so zeroed() is a valid type-level initialization.
-    // Rust's usual struct initializer syntax is a bad idea,
-    // since certain platforms might have extra fields we aren't ready for.
-    let mut act: libc::sigaction = unsafe { MaybeUninit::zeroed().assume_init() };
-    act.sa_sigaction = libc::SIG_DFL;
+    pub fn try_terminating_by_sigpipe() -> Result<Infallible, ()> {
+        // Start by unblocking SIGPIPE. Doing this thread-local operation first may shorten
+        // the race window between the process-wide action reset and the raise of the signal.
+        unblock_sigpipe()?;
 
-    // SAFETY: All the values should be valid; the last argument in particular
-    // is explicitly allowed to be null if we don't care about the previous handler.
-    // POSIX.1 requires this to be reentrant in multi-threaded programs.
-    let ret = unsafe { libc::sigaction(libc::SIGPIPE, &act, ptr::null_mut()) };
-    if ret != 0 {
-        return; // Weird, sigaction failed. Best we can do is fall back to a plain exit.
+        // Reset the process-wide action; see the upstream pipecheck crate for caveats.
+        reset_sigpipe_action()?;
+
+        // SAFETY: We know SIGPIPE is a valid signal value, and POSIX.1 requires this
+        // to be reentrant in multi-threaded programs. This should terminate the program,
+        // but might not due to behavioral caveats documented in the upstream pipecheck crate.
+        unsafe { libc::raise(libc::SIGPIPE) };
+
+        // If any of that failed, we fall back to a plain exit.
+        Err(())
     }
 
-    // SAFETY: We know SIGPIPE is a valid signal value, and POSIX.1 requires this
-    // to be reentrant in multi-threaded programs. This _should_ terminate the program,
-    // but might not due to behavioral caveats documented in the upstream pipecheck crate.
-    unsafe { libc::raise(libc::SIGPIPE) };
+    fn unblock_sigpipe() -> Result<(), ()> {
+        // SAFETY: Per sigsetops(3), `sigemptyset` is a valid way to initialize a signal set,
+        // and it's done before any other use.
+        let sigpipe_set: libc::sigset_t = unsafe {
+            let mut set = MaybeUninit::uninit();
+            libc::sigemptyset(set.as_mut_ptr());
+            libc::sigaddset(set.as_mut_ptr(), libc::SIGPIPE);
+            set.assume_init()
+        };
 
-    // If that failed to terminate the process, we fall through this function and exit.
+        // SAFETY: `set` is initialized above, and `oset` is permitted to be null.
+        // `pthread_sigmask` is explicitly specified by POSIX.1 for use in multithreaded programs
+        // (unlike `sigprocmask`).
+        unsafe {
+            match libc::pthread_sigmask(libc::SIG_UNBLOCK, &sigpipe_set, ptr::null_mut()) {
+                0 => Ok(()),
+                _ => Err(()), // In theory, this can only be hit if `how` is invalid.
+            }
+        }
+    }
+
+    fn reset_sigpipe_action() -> Result<(), ()> {
+        // SAFETY: sigaction is a C struct, so zeroed() is a valid type-level initialization.
+        // Rust's usual struct initializer syntax is a bad idea,
+        // since certain platforms might have extra fields we aren't ready for.
+        let mut act: libc::sigaction = unsafe { MaybeUninit::zeroed().assume_init() };
+        act.sa_sigaction = libc::SIG_DFL;
+
+        // SAFETY: `act` is initialized above, and `oact` is permitted to be null.
+        // POSIX.1 requires this to be reentrant in multi-threaded programs.
+        unsafe {
+            match libc::sigaction(libc::SIGPIPE, &act, ptr::null_mut()) {
+                0 => Ok(()),
+                _ => Err(()),
+            }
+        }
+    }
 }

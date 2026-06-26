@@ -35,14 +35,13 @@
 //!      read end, and terminating the server would break other clients' connections.
 //!
 //! Given these challenges, the Rust developers chose to override Unix's default behavior by
-//! ignoring SIGPIPE before calling `main`, so that writes to broken pipes return a plain
+//! ignoring SIGPIPE before calling `main`, making writes to broken pipes return a
 //! [`BrokenPipe`](std::io::ErrorKind::BrokenPipe) error on all platforms.
-//!
-//! However, real-world Rust libraries don't always expose enough detail to easily distinguish
-//! broken pipes from other errors. For example, the [`source`](std::error::Error::source)
-//! implementation for a custom error might not expose an underlying [`io::Error`](std::io::Error)
-//! even when traversing the entire chain of sources, which is problematic when error values are
-//! coalesced into a `Box<dyn Error>` (or similar) and passed up the call stack.
+//! However, real-world Rust libraries don't always make this easy to detect:
+//! [`source`](std::error::Error::source) implementations might not expose an underlying
+//! [`io::Error`](std::io::Error) even when traversing the entire source chain,
+//! creating problems for developers who choose to aggregate errors into dynamic containers like
+//! `Box<dyn Error>` or `anyhow::Error`.
 //!
 //! [`Writer`] instead plumbs its logic into every write, catching broken pipe errors and
 //! terminating the process before they can be lost or obscured. Compared to modifying the

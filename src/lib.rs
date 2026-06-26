@@ -12,10 +12,13 @@
 //!
 //!   * If it fails to unblock SIGPIPE or reset its disposition, which should never happen
 //!     on a well-behaved system.
-//!   * If a racing thread installs a non-default SIGPIPE handler, in which case `Writer` may
-//!     invoke that handler before exiting. This is _not_ considered unsound in terms of Rust's
-//!     safety guarantees, as POSIX.1 prohibits the involved C library functions from being prone
-//!     to data races or similar undefined behavior.
+//!   * If a racing thread installs a non-default SIGPIPE handler, in which case it may invoke
+//!     that handler before exiting. This is _not_ considered unsound in terms of Rust's safety
+//!     guarantees, as POSIX.1 prohibits the involved C library functions from being prone to data
+//!     races or similar undefined behavior.
+//!   * If the system considers the process immune to termination by signals. In particular,
+//!     PID 1 in a Linux PID namespace (e.g. a container entrypoint) cannot be terminated by
+//!     SIGPIPE.
 //!
 //! Non-Unix platforms always fall back to a plain exit.
 //!
@@ -75,8 +78,8 @@
 //! plain error. For background on Go's behavior and runtime implementation, see:
 //!
 //! - <https://pkg.go.dev/os/signal#hdr-SIGPIPE>
-//! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/os/file_unix.go;l=252>
-//! - <https://cs.opensource.google/go/go/+/refs/tags/go1.23.6:src/runtime/signal_unix.go;l=333>
+//! - <https://cs.opensource.google/go/go/+/refs/tags/go1.27rc1:src/os/file_unix.go;l=234>
+//! - <https://cs.opensource.google/go/go/+/refs/tags/go1.27rc1:src/runtime/signal_unix.go;l=969>
 
 mod pipecheck;
 

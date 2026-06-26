@@ -7,6 +7,8 @@
   since pipecheck always terminates the process one way or another on broken
   pipe errors, it should strive to avoid the exit fallback in as many
   situations as it reasonably can.
+- **Documentation regarding PID 1 on Linux**, for which pipecheck will fall
+  back to an exit.
 
 ## v0.1.3 (2026-01-25)
 
